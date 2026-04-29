@@ -33,10 +33,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Persist the default GITHUB_TOKEN so subsequent git push uses it.
-          # Note: PRs opened with GITHUB_TOKEN don't trigger downstream
-          # workflows. Swap to a fine-grained PAT (RANGER_BOT_PAT) for
-          # production. See docs.
+          # Use RANGER_BOT_PAT (fine-grained PAT with workflows:write) so
+          # the agent can update .github/workflows/* — bootstrap skills
+          # rely on this. Falls back to GITHUB_TOKEN in degraded mode
+          # (everything works EXCEPT workflow edits and PR-triggered
+          # downstream CI). See docs/PREREQUISITE-STATE.md.
+          token: ${{ secrets.RANGER_BOT_PAT || secrets.GITHUB_TOKEN }}
           persist-credentials: true
 
       - name: Set up Python
@@ -77,7 +79,7 @@ jobs:
           BEDROCK_AWS_SECRET_ACCESS_KEY: ${{ secrets.BEDROCK_AWS_SECRET_ACCESS_KEY }}
           # gh CLI uses GH_TOKEN automatically; this is the same token
           # actions/checkout used so the credential helper already has it.
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RANGER_BOT_PAT || secrets.GITHUB_TOKEN }}
         run: |
           if [ -n "${{ steps.task.outputs.issue }}" ]; then
             ranger run \
