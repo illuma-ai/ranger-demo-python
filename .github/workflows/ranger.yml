@@ -1,0 +1,121 @@
+name: Ranger Agent
+
+# Triggers when an issue is labeled "auto-fix". Drop the label on any issue
+# to fire the agent: it will clone this repo, follow .ranger/skills/, make
+# edits, run validation, and open a draft PR with the changes.
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Manual task description (used when not triggered from an issue)"
+        required: true
+        type: string
+
+jobs:
+  ranger:
+    if: |
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'issues' && github.event.label.name == 'auto-fix')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # branch + commit
+      pull-requests: write  # gh pr create
+      issues: write         # comment on triggering issue (Phase 4)
+    timeout-minutes: 30
+    concurrency:
+      group: ranger-${{ github.event.issue.number || github.run_id }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Persist the default GITHUB_TOKEN so subsequent git push uses it.
+          # Note: PRs opened with GITHUB_TOKEN don't trigger downstream
+          # workflows. Swap to a fine-grained PAT (RANGER_BOT_PAT) for
+          # production. See docs.
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ranger-agent
+        run: |
+          python -m pip install --upgrade pip
+          pip install "git+https://github.com/illuma-ai/ranger-agent.git@main"
+
+      - name: Install demo deps
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Configure git identity for the bot
+        run: |
+          git config --global user.email "ranger-agent[bot]@users.noreply.github.com"
+          git config --global user.name "ranger-agent"
+
+      - name: Resolve task source
+        id: task
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "task<<EOF" >> "$GITHUB_OUTPUT"
+            echo "${{ inputs.task }}" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          else
+            # Triggered by issue label — agent fetches via gh
+            echo "issue=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run agent and open PR
+        env:
+          BEDROCK_AWS_DEFAULT_REGION: ${{ secrets.BEDROCK_AWS_DEFAULT_REGION }}
+          BEDROCK_AWS_ACCESS_KEY_ID: ${{ secrets.BEDROCK_AWS_ACCESS_KEY_ID }}
+          BEDROCK_AWS_SECRET_ACCESS_KEY: ${{ secrets.BEDROCK_AWS_SECRET_ACCESS_KEY }}
+          # gh CLI uses GH_TOKEN automatically; this is the same token
+          # actions/checkout used so the credential helper already has it.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${{ steps.task.outputs.issue }}" ]; then
+            ranger run \
+              --working-dir "$(pwd)" \
+              --issue "${{ steps.task.outputs.issue }}" \
+              --repo "${{ github.repository }}" \
+              --provider bedrock \
+              --model claude-sonnet-4-6 \
+              --no-mcp \
+              --cost-limit 5.00 \
+              --step-limit 60 \
+              --wall-clock 1800 \
+              --create-pr \
+              --pr-base-branch "${{ github.event.repository.default_branch }}" \
+              --pr-build-command "python -m compileall app/" \
+              --pr-test-command "pytest -q" \
+              --trajectory ./ranger-trajectory.json
+          else
+            ranger run \
+              --working-dir "$(pwd)" \
+              --task "${{ steps.task.outputs.task }}" \
+              --provider bedrock \
+              --model claude-sonnet-4-6 \
+              --no-mcp \
+              --cost-limit 5.00 \
+              --step-limit 60 \
+              --wall-clock 1800 \
+              --create-pr \
+              --pr-base-branch "${{ github.event.repository.default_branch }}" \
+              --pr-build-command "python -m compileall app/" \
+              --pr-test-command "pytest -q" \
+              --trajectory ./ranger-trajectory.json
+          fi
+
+      - name: Upload trajectory artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ranger-trajectory
+          path: ranger-trajectory.json
+          if-no-files-found: ignore
