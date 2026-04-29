@@ -21,6 +21,13 @@ async def list_notes(
     return service.list_notes(tag=tag, include_archived=include_archived)
 
 
+@router.get("/search", response_model=list[NoteResponse])
+async def search_notes(
+    q: str = Query(..., min_length=1, description="Keyword to search in title or content"),
+) -> list[NoteResponse]:
+    return service.search_notes(q)
+
+
 @router.get("/{note_id}", response_model=NoteResponse)
 async def get_note(note_id: int) -> NoteResponse:
     note = service.get_note(note_id)
