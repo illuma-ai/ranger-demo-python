@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.notes import service
 from app.notes.schemas import NoteCreate, NoteResponse
@@ -14,8 +14,10 @@ async def create_note(payload: NoteCreate) -> NoteResponse:
 
 
 @router.get("", response_model=list[NoteResponse])
-async def list_notes() -> list[NoteResponse]:
-    return service.list_notes()
+async def list_notes(
+    tag: str | None = Query(default=None, description="Filter notes by tag"),
+) -> list[NoteResponse]:
+    return service.list_notes(tag=tag)
 
 
 @router.get("/{note_id}", response_model=NoteResponse)
