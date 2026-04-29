@@ -14,3 +14,4 @@ class NoteResponse(BaseModel):
     title: str
     content: str
     tags: list[str]
+    archived: bool = False

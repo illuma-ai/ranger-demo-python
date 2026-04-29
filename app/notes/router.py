@@ -16,13 +16,22 @@ async def create_note(payload: NoteCreate) -> NoteResponse:
 @router.get("", response_model=list[NoteResponse])
 async def list_notes(
     tag: str | None = Query(default=None, description="Filter notes by tag"),
+    include_archived: bool = Query(default=False, description="Include archived notes"),
 ) -> list[NoteResponse]:
-    return service.list_notes(tag=tag)
+    return service.list_notes(tag=tag, include_archived=include_archived)
 
 
 @router.get("/{note_id}", response_model=NoteResponse)
 async def get_note(note_id: int) -> NoteResponse:
     note = service.get_note(note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return note
+
+
+@router.patch("/{note_id}/archive", response_model=NoteResponse)
+async def archive_note(note_id: int) -> NoteResponse:
+    note = service.archive_note(note_id)
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
     return note

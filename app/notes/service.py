@@ -21,8 +21,13 @@ def create_note(payload: NoteCreate) -> NoteResponse:
     return note
 
 
-def list_notes(tag: str | None = None) -> list[NoteResponse]:
+def list_notes(
+    tag: str | None = None,
+    include_archived: bool = False,
+) -> list[NoteResponse]:
     notes = list(_store.values())
+    if not include_archived:
+        notes = [n for n in notes if not n.archived]
     if tag is not None:
         notes = [n for n in notes if tag in n.tags]
     return notes
@@ -30,3 +35,11 @@ def list_notes(tag: str | None = None) -> list[NoteResponse]:
 
 def get_note(note_id: int) -> NoteResponse | None:
     return _store.get(note_id)
+
+
+def archive_note(note_id: int) -> NoteResponse | None:
+    note = _store.get(note_id)
+    if note is None:
+        return None
+    _store[note_id] = note.model_copy(update={"archived": True})
+    return _store[note_id]
