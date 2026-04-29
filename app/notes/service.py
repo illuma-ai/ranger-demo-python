@@ -33,6 +33,20 @@ def list_notes(
     return notes
 
 
+def search_notes(q: str) -> list[NoteResponse]:
+    """Return non-archived notes whose title or content contains *q* (case-insensitive).
+
+    Results are ordered newest-first (highest ID first).
+    """
+    needle = q.lower()
+    matches = [
+        n
+        for n in _store.values()
+        if not n.archived and (needle in n.title.lower() or needle in n.content.lower())
+    ]
+    return sorted(matches, key=lambda n: n.id, reverse=True)
+
+
 def get_note(note_id: int) -> NoteResponse | None:
     return _store.get(note_id)
 

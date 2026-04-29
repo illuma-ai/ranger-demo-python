@@ -172,6 +172,72 @@ def test_new_note_archived_flag_is_false() -> None:
 
 
 # ---------------------------------------------------------------------------
+# GET /notes/search
+# ---------------------------------------------------------------------------
+
+
+def test_search_notes_matches_title() -> None:
+    client.post("/notes", json={"title": "Python tips", "content": "Some content"})
+    client.post("/notes", json={"title": "Unrelated", "content": "Other stuff"})
+    response = client.get("/notes/search?q=python")
+    assert response.status_code == 200
+    notes = response.json()
+    assert len(notes) == 1
+    assert notes[0]["title"] == "Python tips"
+
+
+def test_search_notes_matches_content() -> None:
+    client.post("/notes", json={"title": "Random title", "content": "FastAPI is great"})
+    client.post("/notes", json={"title": "Another note", "content": "Nothing relevant"})
+    response = client.get("/notes/search?q=fastapi")
+    assert response.status_code == 200
+    notes = response.json()
+    assert len(notes) == 1
+    assert notes[0]["title"] == "Random title"
+
+
+def test_search_notes_is_case_insensitive() -> None:
+    client.post("/notes", json={"title": "Hello World", "content": "Body text"})
+    for q in ("hello", "HELLO", "Hello", "hElLo"):
+        response = client.get(f"/notes/search?q={q}")
+        assert response.status_code == 200, f"failed for q={q!r}"
+        assert len(response.json()) == 1, f"expected 1 result for q={q!r}"
+
+
+def test_search_notes_returns_newest_first() -> None:
+    client.post("/notes", json={"title": "First match", "content": "keyword here"})
+    client.post("/notes", json={"title": "Second match", "content": "keyword here"})
+    client.post("/notes", json={"title": "Third match", "content": "keyword here"})
+    response = client.get("/notes/search?q=keyword")
+    assert response.status_code == 200
+    ids = [n["id"] for n in response.json()]
+    assert ids == sorted(ids, reverse=True)
+
+
+def test_search_notes_empty_when_no_match() -> None:
+    client.post("/notes", json={"title": "Note", "content": "Content"})
+    response = client.get("/notes/search?q=zzznomatch")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_search_notes_excludes_archived() -> None:
+    client.post("/notes", json={"title": "Active note", "content": "keyword"})
+    client.post("/notes", json={"title": "Archived note", "content": "keyword"})
+    client.patch("/notes/2/archive")
+    response = client.get("/notes/search?q=keyword")
+    assert response.status_code == 200
+    notes = response.json()
+    assert len(notes) == 1
+    assert notes[0]["title"] == "Active note"
+
+
+def test_search_notes_requires_q_param() -> None:
+    response = client.get("/notes/search")
+    assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
 # GET /notes/{id}
 # ---------------------------------------------------------------------------
 
