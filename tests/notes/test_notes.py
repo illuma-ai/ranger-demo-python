@@ -109,6 +109,69 @@ def test_list_notes_no_filter_returns_all_tagged_notes() -> None:
 
 
 # ---------------------------------------------------------------------------
+# PATCH /notes/{id}/archive
+# ---------------------------------------------------------------------------
+
+
+def test_archive_note_returns_200_with_archived_flag() -> None:
+    client.post("/notes", json={"title": "To archive", "content": "Body"})
+    response = client.patch("/notes/1/archive")
+    assert response.status_code == 200
+    assert response.json()["archived"] is True
+
+
+def test_archive_note_404_for_missing_id() -> None:
+    response = client.patch("/notes/999/archive")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Note not found"
+
+
+def test_archive_note_hides_note_from_default_list() -> None:
+    client.post("/notes", json={"title": "Visible", "content": "A"})
+    client.post("/notes", json={"title": "Hidden", "content": "B"})
+    client.patch("/notes/2/archive")
+
+    response = client.get("/notes")
+    notes = response.json()
+    assert len(notes) == 1
+    assert notes[0]["title"] == "Visible"
+
+
+def test_list_notes_include_archived_shows_all() -> None:
+    client.post("/notes", json={"title": "Visible", "content": "A"})
+    client.post("/notes", json={"title": "Hidden", "content": "B"})
+    client.patch("/notes/2/archive")
+
+    response = client.get("/notes?include_archived=true")
+    assert len(response.json()) == 2
+
+
+def test_list_notes_archived_flag_false_by_default() -> None:
+    """Archived notes must not appear when include_archived is omitted."""
+    client.post("/notes", json={"title": "Note", "content": "A"})
+    client.patch("/notes/1/archive")
+
+    response = client.get("/notes")
+    assert response.json() == []
+
+
+def test_list_notes_tag_filter_excludes_archived_by_default() -> None:
+    client.post("/notes", json={"title": "Active", "content": "A", "tags": ["python"]})
+    client.post("/notes", json={"title": "Archived", "content": "B", "tags": ["python"]})
+    client.patch("/notes/2/archive")
+
+    response = client.get("/notes?tag=python")
+    notes = response.json()
+    assert len(notes) == 1
+    assert notes[0]["title"] == "Active"
+
+
+def test_new_note_archived_flag_is_false() -> None:
+    response = client.post("/notes", json={"title": "Fresh", "content": "New"})
+    assert response.json()["archived"] is False
+
+
+# ---------------------------------------------------------------------------
 # GET /notes/{id}
 # ---------------------------------------------------------------------------
 
