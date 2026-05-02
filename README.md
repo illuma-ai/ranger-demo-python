@@ -64,6 +64,19 @@ pytest -q                                             # ~1s
 uvicorn app.main:app --reload                         # /health on :8000
 ```
 
+Once the server is running, call it with curl or httpx:
+
+```bash
+curl http://localhost:8000/health
+```
+
+```python
+import httpx
+
+response = httpx.get('http://localhost:8000/health')
+print(response.json())
+```
+
 ## Architecture reference
 
 - Agent CLI: [illuma-ai/ranger-agent](https://github.com/illuma-ai/ranger-agent)
