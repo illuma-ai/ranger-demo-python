@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.auth import require_auth
 from app.notes import service
 from app.notes.schemas import NoteCreate, NoteResponse
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
 
-@router.post("", response_model=NoteResponse, status_code=201)
+@router.post("", response_model=NoteResponse, status_code=201, dependencies=[Depends(require_auth)])
 async def create_note(payload: NoteCreate) -> NoteResponse:
     return service.create_note(payload)
 
@@ -36,7 +37,11 @@ async def get_note(note_id: int) -> NoteResponse:
     return note
 
 
-@router.patch("/{note_id}/archive", response_model=NoteResponse)
+@router.patch(
+    "/{note_id}/archive",
+    response_model=NoteResponse,
+    dependencies=[Depends(require_auth)],
+)
 async def archive_note(note_id: int) -> NoteResponse:
     note = service.archive_note(note_id)
     if note is None:

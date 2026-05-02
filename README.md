@@ -56,6 +56,42 @@ gh workflow run "Ranger Agent" \
 A bundled `builtin:python` skill also loads automatically — repo-level
 skills override it where they conflict.
 
+## API authentication
+
+Write endpoints require a JWT bearer token signed with HS256.
+
+| Endpoint | Auth required |
+|---|---|
+| `POST /notes` | ✅ Bearer JWT |
+| `PATCH /notes/{id}/archive` | ✅ Bearer JWT |
+| `GET /notes` | ❌ public |
+| `GET /notes/search` | ❌ public |
+| `GET /notes/{id}` | ❌ public |
+
+The secret is read from the `JWT_SECRET` environment variable
+(default: `dev-secret-do-not-use-in-prod` — **override this in production**).
+
+### Example: mint a token and create a note
+
+```bash
+# Mint a token (requires PyJWT)
+TOKEN=$(python - <<'EOF'
+import jwt, time
+print(jwt.encode({"sub": "me", "exp": int(time.time()) + 3600},
+                 "dev-secret-do-not-use-in-prod", algorithm="HS256"))
+EOF
+)
+
+# Create a note
+curl -X POST http://localhost:8000/notes \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "My first note", "content": "Hello, world!"}'
+```
+
+Missing, malformed, or expired tokens receive `HTTP 401` with a
+`WWW-Authenticate: Bearer` response header.
+
 ## Local run (no GHA)
 
 ```bash
