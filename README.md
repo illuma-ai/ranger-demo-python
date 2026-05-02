@@ -56,6 +56,34 @@ gh workflow run "Ranger Agent" \
 A bundled `builtin:python` skill also loads automatically — repo-level
 skills override it where they conflict.
 
+## API / Authentication
+
+Write endpoints require a valid JWT in the `Authorization` header:
+
+```
+Authorization: Bearer <JWT>
+```
+
+| Endpoint | Auth required |
+|---|---|
+| `POST /notes` | ✅ Bearer JWT |
+| `PATCH /notes/{id}/archive` | ✅ Bearer JWT |
+| `GET /notes` | ❌ Public |
+| `GET /notes/{id}` | ❌ Public |
+| `GET /notes/search` | ❌ Public |
+
+Tokens must be **HS256**-signed with the secret stored in the `JWT_SECRET`
+environment variable.  The default value `"dev-secret-do-not-use-in-prod"` is
+intentionally weak — **override it in every non-local environment**:
+
+```bash
+export JWT_SECRET="$(openssl rand -hex 32)"
+```
+
+Requests to write endpoints without a token, with an invalid token, or with an
+expired token receive `401 Unauthorized` with a `WWW-Authenticate: Bearer`
+response header.
+
 ## Local run (no GHA)
 
 ```bash

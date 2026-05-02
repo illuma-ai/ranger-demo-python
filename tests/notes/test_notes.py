@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 
 import app.notes.service as notes_service
+from app.auth import _ALGORITHM, _JWT_SECRET_DEFAULT
 from app.main import app
 
-client = TestClient(app)
+# A single valid token used across all write calls in this test module.
+_VALID_TOKEN = jwt.encode({"sub": "test-user"}, _JWT_SECRET_DEFAULT, algorithm=_ALGORITHM)
+
+# Use a client with the auth header pre-set so all write calls are authenticated
+# without touching every individual call site.  GET endpoints ignore the extra
+# header, so read tests are unaffected.
+client = TestClient(app, headers={"Authorization": f"Bearer {_VALID_TOKEN}"})
 
 
 @pytest.fixture(autouse=True)
