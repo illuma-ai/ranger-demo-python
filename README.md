@@ -56,6 +56,46 @@ gh workflow run "Ranger Agent" \
 A bundled `builtin:python` skill also loads automatically — repo-level
 skills override it where they conflict.
 
+## API authentication
+
+Write endpoints (`POST /notes`, `PATCH /notes/{id}/archive`) require a
+valid **HS256 JWT** in the `Authorization: Bearer <token>` header.
+Read endpoints (`GET /notes`, `GET /notes/search`, `GET /notes/{id}`) are
+**public** and need no token.
+
+The token secret is read from the `JWT_SECRET` environment variable
+(default: `dev-secret-do-not-use-in-prod` — **never use this default in
+production**).
+
+### Generating a token (dev / testing)
+
+```python
+import jwt, time
+token = jwt.encode(
+    {"sub": "alice", "exp": int(time.time()) + 3600},
+    "dev-secret-do-not-use-in-prod",
+    algorithm="HS256",
+)
+print(token)
+```
+
+### curl examples
+
+```bash
+# Create a note (write — token required)
+curl -X POST http://localhost:8000/notes \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Hello", "content": "World"}'
+
+# List notes (public — no token needed)
+curl http://localhost:8000/notes
+
+# Archive a note (write — token required)
+curl -X PATCH http://localhost:8000/notes/1/archive \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ## Local run (no GHA)
 
 ```bash
