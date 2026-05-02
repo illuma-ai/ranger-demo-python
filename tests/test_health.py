@@ -11,3 +11,15 @@ def test_health_returns_ok() -> None:
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_health_extended_returns_all_fields() -> None:
+    response = client.get("/health/extended")
+    assert response.status_code == 200
+    data = response.json()
+    assert "status" in data
+    assert data["status"] == "ok"
+    assert "uptime_seconds" in data
+    assert isinstance(data["uptime_seconds"], float)
+    assert "version" in data
+    assert data["version"] == "1.0.0"
