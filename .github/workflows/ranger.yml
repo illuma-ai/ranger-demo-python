@@ -90,31 +90,23 @@ jobs:
               --working-dir "$(pwd)" \
               --issue "${{ steps.task.outputs.issue }}" \
               --repo "${{ github.repository }}" \
-              --provider bedrock \
-              --model claude-sonnet-4-6 \
               --no-mcp \
-              --cost-limit 5.00 \
-              --step-limit 60 \
+              --cost-limit 15.00 \
+              --step-limit 300 \
               --wall-clock 1800 \
               --create-pr \
               --pr-base-branch "${{ github.event.repository.default_branch }}" \
-              --pr-build-command "python -m compileall app/" \
-              --pr-test-command "pytest -q" \
               --trajectory ./ranger-trajectory.json
           else
             ranger run \
               --working-dir "$(pwd)" \
               --task "${{ steps.task.outputs.task }}" \
-              --provider bedrock \
-              --model claude-sonnet-4-6 \
               --no-mcp \
-              --cost-limit 5.00 \
-              --step-limit 60 \
+              --cost-limit 15.00 \
+              --step-limit 300 \
               --wall-clock 1800 \
               --create-pr \
               --pr-base-branch "${{ github.event.repository.default_branch }}" \
-              --pr-build-command "python -m compileall app/" \
-              --pr-test-command "pytest -q" \
               --trajectory ./ranger-trajectory.json
           fi
 
