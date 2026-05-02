@@ -64,6 +64,16 @@ pytest -q                                             # ~1s
 uvicorn app.main:app --reload                         # /health on :8000
 ```
 
+Then hit it from Python:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+```python
+import httpx; print(httpx.get('http://127.0.0.1:8000/health').json())
+```
+
 ## Architecture reference
 
 - Agent CLI: [illuma-ai/ranger-agent](https://github.com/illuma-ai/ranger-agent)
